@@ -6,7 +6,12 @@ npm-debug.log*
 .terraform/
 *.tfstate
 *.tfstate.*
+.terraform.lock.hcl
+.build/
 
 # OS / Editor
 .DS_Store
 .vscode/
+
+# Local test artifacts
+response.json
