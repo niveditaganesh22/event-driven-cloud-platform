@@ -218,3 +218,137 @@ resource "aws_lambda_function" "api" {
 
   tags = local.tags
 }
+data "archive_file" "worker_zip" {
+  type        = "zip"
+  source_dir  = "${path.module}/../../../services/worker/dist"
+  output_path = "${path.module}/.build/worker.zip"
+}
+resource "aws_iam_role" "worker_lambda_role" {
+  name = "${local.name_prefix}-worker-lambda-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [{
+      Action    = "sts:AssumeRole",
+      Effect    = "Allow",
+      Principal = { Service = "lambda.amazonaws.com" }
+    }]
+  })
+
+  tags = local.tags
+}
+
+resource "aws_iam_policy" "worker_lambda_policy" {
+  name = "${local.name_prefix}-worker-lambda-policy"
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      # Logs
+      {
+        Effect   = "Allow",
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"],
+        Resource = "arn:aws:logs:*:*:*"
+      },
+      # Read from Bronze
+      {
+        Effect   = "Allow",
+        Action   = ["s3:GetObject"],
+        Resource = "${aws_s3_bucket.bronze.arn}/*"
+      },
+      # Write to Silver
+      {
+        Effect   = "Allow",
+        Action   = ["s3:PutObject"],
+        Resource = "${aws_s3_bucket.silver.arn}/*"
+      },
+      # Update DynamoDB
+      {
+        Effect   = "Allow",
+        Action   = ["dynamodb:UpdateItem"],
+        Resource = aws_dynamodb_table.events.arn
+      },
+      # EventBridge publish
+      {
+        Effect   = "Allow",
+        Action   = ["events:PutEvents"],
+        Resource = "*"
+      },
+      # SQS consume (needed for event source mapping)
+      {
+        Effect = "Allow",
+        Action = [
+          "sqs:ReceiveMessage",
+          "sqs:DeleteMessage",
+          "sqs:GetQueueAttributes",
+          "sqs:ChangeMessageVisibility"
+        ],
+        Resource = aws_sqs_queue.queue.arn
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "worker_attach_policy" {
+  role       = aws_iam_role.worker_lambda_role.name
+  policy_arn = aws_iam_policy.worker_lambda_policy.arn
+}
+resource "aws_lambda_function" "worker" {
+  function_name = "${local.name_prefix}-worker"
+  role          = aws_iam_role.worker_lambda_role.arn
+  handler       = "handler.handler"
+  runtime       = "nodejs20.x"
+
+  filename         = data.archive_file.worker_zip.output_path
+  source_code_hash = data.archive_file.worker_zip.output_base64sha256
+
+  timeout     = 20
+  memory_size = 256
+
+  environment {
+    variables = {
+      SILVER_BUCKET  = aws_s3_bucket.silver.bucket
+      EVENTS_TABLE   = aws_dynamodb_table.events.name
+      EVENT_BUS_NAME = "default"
+    }
+  }
+
+  tags = local.tags
+}
+resource "aws_lambda_event_source_mapping" "worker_from_sqs" {
+  event_source_arn = aws_sqs_queue.queue.arn
+  function_name    = aws_lambda_function.worker.arn
+
+  batch_size                         = 5
+  maximum_batching_window_in_seconds = 5
+  enabled                            = true
+}
+resource "aws_apigatewayv2_api" "http_api" {
+  name          = "${local.name_prefix}-http-api"
+  protocol_type = "HTTP"
+  tags          = local.tags
+}
+resource "aws_apigatewayv2_integration" "api_lambda_integration" {
+  api_id                 = aws_apigatewayv2_api.http_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.api.arn
+  payload_format_version = "2.0"
+}
+resource "aws_apigatewayv2_route" "post_events" {
+  api_id    = aws_apigatewayv2_api.http_api.id
+  route_key = "POST /events"
+  target    = "integrations/${aws_apigatewayv2_integration.api_lambda_integration.id}"
+}
+resource "aws_apigatewayv2_stage" "default" {
+  api_id      = aws_apigatewayv2_api.http_api.id
+  name        = "$default"
+  auto_deploy = true
+  tags        = local.tags
+}
+resource "aws_lambda_permission" "allow_apigw_invoke" {
+  statement_id  = "AllowExecutionFromAPIGateway"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.api.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.http_api.execution_arn}/*/*"
+}

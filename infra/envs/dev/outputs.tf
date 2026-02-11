@@ -17,3 +17,7 @@ output "queue_url" {
 output "dlq_url" {
   value = aws_sqs_queue.dlq.url
 }
+
+output "http_api_url" {
+  value = aws_apigatewayv2_api.http_api.api_endpoint
+}

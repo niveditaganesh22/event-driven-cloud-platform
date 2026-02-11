@@ -52,19 +52,13 @@ Repository Structure
 ├── .github/workflows/     # CI
 └── README.md
 
-Current Status
+Current status:
+- ✅ Infra provisioned (S3/DynamoDB/SQS/DLQ)
+- ✅ API Lambda deployed
+- ✅ Worker Lambda deployed
+- ✅ End-to-end ingestion verified
+- ✅ API Gateway HTTP endpoint live
 
-✅ Infrastructure provisioned using Terraform
-
-✅ API Lambda deployed
-
-✅ End-to-end ingestion verified:
-
-Lambda → S3 → DynamoDB → SQS
-
-⏳ Worker Lambda (next)
-
-⏳ API Gateway (next)
 
 Prerequisites
 

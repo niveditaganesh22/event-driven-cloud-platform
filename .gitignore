@@ -15,3 +15,6 @@ npm-debug.log*
 
 # Local test artifacts
 response.json
+
+dist/
+services/**/dist/
