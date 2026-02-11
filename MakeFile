@@ -1,0 +1,17 @@
+.PHONY: build-api build-worker build deploy destroy
+
+build-api:
+	cd services/api && npm install && npm run build
+
+build-worker:
+	cd services/worker && npm install && npm run build
+
+build:
+	make build-api
+	make build-worker
+
+deploy:
+	cd infra/envs/dev && terraform init && terraform apply
+
+destroy:
+	cd infra/envs/dev && terraform destroy

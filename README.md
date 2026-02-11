@@ -1,64 +1,78 @@
-Event-Driven Cloud Platform (AWS | Serverless | Terraform)
+Event-Driven Cloud Platform
 
-A production-style event-driven serverless platform built on AWS using Terraform and TypeScript.
+AWS • Serverless • Terraform
 
-This project demonstrates reliable event ingestion, durable persistence, and asynchronous processing using managed AWS services — mirroring real-world cloud platform patterns used in large-scale systems.
+This is a small but production-style event-driven platform built on AWS using Terraform and TypeScript.
 
-Tech Stack
+The goal of this project was to practice and demonstrate common cloud patterns used in real systems: event ingestion, durable storage, asynchronous processing, and infrastructure managed entirely as code.
+
+What this project does
+
+At a high level, the platform accepts an event, stores it safely, and queues it for downstream processing.
+
+Flow:
+
+An API Lambda receives an event payload
+
+The raw payload is stored in S3 (Bronze layer)
+
+Event metadata is written to DynamoDB
+
+The event is pushed to an SQS queue
+
+A worker Lambda (SQS-triggered) processes the event (currently minimal logic)
+
+This mirrors how many real systems decouple ingestion from processing for reliability and scale.
+
+Tech stack
 
 AWS Lambda (TypeScript)
 
 Amazon S3 (Bronze / Silver pattern)
 
-Amazon DynamoDB (event metadata)
+Amazon DynamoDB (event metadata & state)
 
-Amazon SQS + Dead Letter Queue (asynchronous processing)
+Amazon SQS + Dead Letter Queue
 
 Terraform (Infrastructure as Code)
 
-GitHub Actions (CI)
+GitHub Actions (basic CI)
 
-Architecture Overview
+Architecture overview
 
 Ingest → Persist → Queue → Process
 
-API Lambda receives an event payload
+Client
+  ↓
+API Lambda
+  ├── S3 (Bronze – raw events)
+  ├── DynamoDB (event metadata)
+  └── SQS Queue
+        ├── Worker Lambda
+        └── Dead Letter Queue
 
-Raw payload is stored in S3 Bronze
-
-Event metadata is written to DynamoDB
-
-Event is enqueued to SQS
-
-(Planned) Worker Lambda processes the event and writes to S3 Silver
-
-flowchart LR
-  A[Client] --> L1[API Lambda]
-  L1 --> B[S3 Bronze]
-  L1 --> D[DynamoDB Events Table]
-  L1 --> Q[SQS Queue]
-  Q --> L2[Worker Lambda (planned)]
-  L2 --> S[S3 Silver (planned)]
-  Q --> DLQ[SQS Dead Letter Queue]
-
-Repository Structure
+Repository structure
 .
 ├── infra/
 │   └── envs/dev/          # Terraform (dev environment)
 ├── services/
 │   ├── api/               # API Lambda (TypeScript)
-│   └── worker/            # Worker Lambda (planned)
-├── docs/                  # Architecture & runbooks
+│   └── worker/            # Worker Lambda
+├── docs/                  # Architecture notes & demo steps
 ├── .github/workflows/     # CI
 └── README.md
 
-Current status:
-- ✅ Infra provisioned (S3/DynamoDB/SQS/DLQ)
-- ✅ API Lambda deployed
-- ✅ Worker Lambda deployed
-- ✅ End-to-end ingestion verified
-- ✅ API Gateway HTTP endpoint live
+Current status
 
+✅ Infrastructure provisioned with Terraform
+
+✅ API Lambda deployed
+
+✅ Worker Lambda deployed
+
+✅ End-to-end ingestion tested
+
+✅ API Gateway HTTP endpoint working
 
 Prerequisites
 
@@ -69,39 +83,44 @@ AWS CLI v2
 Terraform 1.6+
 
 AWS credentials configured locally
-(AWS CLI profile used: dev)
 
-Verify AWS access:
+This project uses an AWS CLI profile named dev.
+
+Verify access:
 
 aws sts get-caller-identity --profile dev
 
-Build and Deploy (Dev)
-Build API Lambda
-cd services\api
+Build and deploy (dev)
+Build the API Lambda
+cd services/api
 npm install
-npm run bundle
+npm run build
 
-Deploy Infrastructure
-cd ..\..\infra\envs\dev
+Deploy infrastructure
+cd ../../infra/envs/dev
 terraform init
 terraform apply
 
-Test the Platform (Direct Lambda Invocation)
+Testing the platform
+1. Invoke the API Lambda directly
 
-This simulates an API Gateway-style request.
+This simulates an API Gateway request.
 
-Invoke API Lambda
-aws lambda invoke `
-  --function-name event-driven-cloud-platform-dev-api `
-  --cli-binary-format raw-in-base64-out `
-  --payload '{"body":"{\"eventType\":\"demo\",\"message\":\"hello\"}"}' `
-  --profile dev `
+aws lambda invoke \
+  --function-name event-driven-cloud-platform-dev-api \
+  --cli-binary-format raw-in-base64-out \
+  --payload '{"body":"{\"eventType\":\"demo\",\"message\":\"hello\"}"}' \
+  --profile dev \
   response.json
 
-View Response
+
+View the response:
+
 type response.json
 
-Expected Result
+
+Expected output:
+
 {
   "statusCode": 202,
   "headers": {
@@ -110,11 +129,10 @@ Expected Result
   "body": "{\"status\":\"accepted\",\"eventId\":\"<uuid>\"}"
 }
 
-Verify Data Flow
-DynamoDB (Event Metadata)
-aws dynamodb get-item `
-  --table-name event-driven-cloud-platform-dev-events `
-  --key '{"pk":{"S":"EVENT#<eventId>"}}' `
+2. Verify DynamoDB entry
+aws dynamodb get-item \
+  --table-name event-driven-cloud-platform-dev-events \
+  --key '{"pk":{"S":"EVENT#<eventId>"}}' \
   --profile dev
 
 
@@ -124,23 +142,20 @@ eventType = demo
 
 status = ENQUEUED
 
-s3Bucket and s3Key populated
+S3 bucket and object key present
 
-SQS (Asynchronous Queue)
-aws sqs get-queue-attributes `
-  --queue-url <queue-url> `
-  --attribute-names ApproximateNumberOfMessages ApproximateNumberOfMessagesNotVisible `
+3. Verify SQS
+aws sqs get-queue-attributes \
+  --queue-url <queue-url> \
+  --attribute-names ApproximateNumberOfMessages ApproximateNumberOfMessagesNotVisible \
   --profile dev
 
 
 Expected:
 
-{
-  "ApproximateNumberOfMessages": "1",
-  "ApproximateNumberOfMessagesNotVisible": "0"
-}
+Messages visible or recently processed
 
-S3 Bronze Layer
+4. Verify S3 (Bronze layer)
 aws s3 ls s3://<bronze-bucket>/bronze/demo/ --profile dev
 
 
@@ -148,36 +163,36 @@ Expected:
 
 JSON file containing the raw event payload
 
-Operational Notes
+Operational notes
 
-SQS decouples ingestion from downstream processing
+SQS decouples ingestion from processing
 
 DynamoDB tracks event lifecycle state
 
-S3 enables replayability and auditability
+S3 provides durability, replay, and auditability
 
-DLQ captures poison messages
+DLQ captures failed messages for inspection
 
-All infrastructure is provisioned and tagged using Terraform
+All infrastructure is reproducible via Terraform
 
 Cleanup
 
 To avoid ongoing AWS costs:
 
-cd infra\envs\dev
+cd infra/envs/dev
 terraform destroy
 
 
-The platform is fully reproducible from code after cleanup.
+The entire platform can be recreated from code at any time.
 
-Planned Enhancements
+Planned enhancements
 
-Worker Lambda (SQS-triggered)
+Expand worker Lambda processing logic
 
 S3 Silver processing layer
 
-EventBridge event publishing
-
-API Gateway HTTP endpoint
+EventBridge integration
 
 CloudWatch alarms and log retention
+
+Stronger CI checks
