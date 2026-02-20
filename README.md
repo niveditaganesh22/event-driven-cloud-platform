@@ -96,8 +96,11 @@ npm run build
 
 ### 2. Deploy Infrastructure
 ```bash```
+
 cd ../../infra/envs/dev
+
 terraform init
+
 terraform apply
 
 ## Testing the Platform
@@ -105,6 +108,7 @@ terraform apply
 
 This simulates an API Gateway request.
 ```bash```
+
 aws lambda invoke \
   --function-name event-driven-cloud-platform-dev-api \
   --cli-binary-format raw-in-base64-out \
@@ -113,7 +117,9 @@ aws lambda invoke \
   response.json
 
 View the response:
+
 ```bash```
+
 type response.json
 
 Expected output:
@@ -127,7 +133,9 @@ Expected output:
   "body": "{\"status\":\"accepted\",\"eventId\":\"<uuid>\"}"
 }
 ### 2. Verify DynamoDB Entry
+
 ```bash```
+
 aws dynamodb get-item \
   --table-name event-driven-cloud-platform-dev-events \
   --key '{"pk":{"S":"EVENT#<eventId>"}}' \
@@ -142,7 +150,9 @@ status = ENQUEUED
 S3 bucket and object key present
 
 ### 3. Verify SQS
+
 ```bash```
+
 aws sqs get-queue-attributes \
   --queue-url <queue-url> \
   --attribute-names ApproximateNumberOfMessages ApproximateNumberOfMessagesNotVisible \
@@ -174,8 +184,11 @@ All infrastructure is reproducible via Terraform
 ## Cleanup
 
 To avoid ongoing AWS costs:
+
 ```bash```
+
 cd infra/envs/dev
+
 terraform destroy
 
 The entire platform can be recreated from code at any time.
