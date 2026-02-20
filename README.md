@@ -38,15 +38,16 @@ This reflects how production systems decouple ingestion from processing for reli
 
 ## Architecture Overview
 
+```text```
 
 Client
-↓
+   ↓
 API Lambda
-├── S3 (Bronze – raw events)
-├── DynamoDB (event metadata)
-└── SQS Queue
-├── Worker Lambda
-└── Dead Letter Queue
+   ├── S3 (Bronze – raw events)
+   ├── DynamoDB (event metadata)
+   └── SQS Queue
+         ├── Worker Lambda
+         └── Dead Letter Queue
 
 
 **Pipeline summary:**  
@@ -56,17 +57,15 @@ Ingest → Persist → Queue → Process
 
 ## Repository Structure
 
-
 .
 ├── infra/
-│ └── envs/dev/ # Terraform (dev environment)
+│   └── envs/dev/          # Terraform (dev environment)
 ├── services/
-│ ├── api/ # API Lambda (TypeScript)
-│ └── worker/ # Worker Lambda
-├── docs/ # Architecture notes & demo steps
-├── .github/workflows/ # CI
+│   ├── api/               # API Lambda (TypeScript)
+│   └── worker/            # Worker Lambda
+├── docs/                  # Architecture notes & demo steps
+├── .github/workflows/     # CI
 └── README.md
-
 
 ---
 
