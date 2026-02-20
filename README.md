@@ -82,6 +82,7 @@ This project uses an AWS CLI profile named `dev`.
 Verify access:
 
 ```bash```
+
 aws sts get-caller-identity --profile dev
 
 ## Build and Deploy (dev)
@@ -89,6 +90,7 @@ aws sts get-caller-identity --profile dev
 ### 1. Build the API Lambda
 
 ```bash```
+
 cd services/api
 npm install
 npm run build
