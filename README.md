@@ -53,6 +53,7 @@ API Lambda
 
 ## Repository Structure
 
+```text
 .
 ├── infra/
 │   └── envs/dev/          # Terraform (dev environment)
@@ -62,7 +63,7 @@ API Lambda
 ├── docs/                  # Architecture notes & demo steps
 ├── .github/workflows/     # CI
 └── README.md
-
+```
 ---
 
 ## Prerequisites
