@@ -1,87 +1,109 @@
-Event-Driven Cloud Platform
+# Event-Driven Cloud Platform
 
-AWS • Serverless • Terraform
+**AWS • Serverless • Terraform • TypeScript**
 
-This is a small but production-style event-driven platform built on AWS using Terraform and TypeScript.
+This project is a small but production-style event-driven platform built on AWS.  
+I built it to model how real systems handle ingestion, durability, and asynchronous processing — with infrastructure managed entirely as code.
 
-The goal of this project was to practice and demonstrate common cloud patterns used in real systems: event ingestion, durable storage, asynchronous processing, and infrastructure managed entirely as code.
+The focus here is not just a Lambda demo, but a system that mirrors real-world event-driven design patterns.
 
-What this project does
+---
+
+## What This Project Does
 
 At a high level, the platform accepts an event, stores it safely, and queues it for downstream processing.
 
-Flow:
+### Flow
 
-An API Lambda receives an event payload
+1. An **API Lambda** receives an event payload  
+2. The raw payload is stored in **Amazon S3 (Bronze layer)**  
+3. Event metadata is written to **DynamoDB**  
+4. The event is pushed to an **SQS queue**  
+5. A **Worker Lambda (SQS-triggered)** processes the event  
 
-The raw payload is stored in S3 (Bronze layer)
+This reflects how production systems decouple ingestion from processing for reliability and scalability.
 
-Event metadata is written to DynamoDB
+---
 
-The event is pushed to an SQS queue
+## Tech Stack
 
-A worker Lambda (SQS-triggered) processes the event (currently minimal logic)
+- **AWS Lambda** (TypeScript)
+- **Amazon S3** (Bronze / future Silver layering)
+- **Amazon DynamoDB** (event metadata & lifecycle state)
+- **Amazon SQS + Dead Letter Queue**
+- **Terraform** (Infrastructure as Code)
+- **GitHub Actions** (basic CI)
 
-This mirrors how many real systems decouple ingestion from processing for reliability and scale.
+---
 
-Tech stack
+## Architecture Overview
 
-AWS Lambda (TypeScript)
 
-Amazon S3 (Bronze / Silver pattern)
+Client
+↓
+API Lambda
+├── S3 (Bronze – raw events)
+├── DynamoDB (event metadata)
+└── SQS Queue
+├── Worker Lambda
+└── Dead Letter Queue
 
-Amazon DynamoDB (event metadata & state)
 
-Amazon SQS + Dead Letter Queue
+**Pipeline summary:**  
+Ingest → Persist → Queue → Process
 
-Terraform (Infrastructure as Code)
+---
 
-GitHub Actions (basic CI)
+## Repository Structure
 
-## Architecture overview
 
-Client → API Lambda → (S3 Bronze + DynamoDB) → SQS → Worker Lambda → DLQ
+.
+├── infra/
+│ └── envs/dev/ # Terraform (dev environment)
+├── services/
+│ ├── api/ # API Lambda (TypeScript)
+│ └── worker/ # Worker Lambda
+├── docs/ # Architecture notes & demo steps
+├── .github/workflows/ # CI
+└── README.md
 
-## Repository structure
 
-infra/ (Terraform) • services/api (Lambda) • services/worker (Lambda) • docs/ • .github/workflows/
+---
 
-## Current status
+## Prerequisites
 
-✅ End-to-end ingestion working (API Gateway → S3/DynamoDB → SQS → Worker)
+- Node.js 20+
+- AWS CLI v2
+- Terraform 1.6+
+- AWS credentials configured locally
 
-Prerequisites
-
-Node.js 20+
-
-AWS CLI v2
-
-Terraform 1.6+
-
-AWS credentials configured locally
-
-This project uses an AWS CLI profile named dev.
+This project uses an AWS CLI profile named `dev`.
 
 Verify access:
 
+```bash```
 aws sts get-caller-identity --profile dev
 
-Build and deploy (dev)
-Build the API Lambda
+## Build and Deploy (dev)
+
+### 1. Build the API Lambda
+
+```bash```
 cd services/api
 npm install
 npm run build
 
-Deploy infrastructure
+### 2. Deploy Infrastructure
+```bash```
 cd ../../infra/envs/dev
 terraform init
 terraform apply
 
-Testing the platform
-1. Invoke the API Lambda directly
+## Testing the Platform
+### 1. Invoke the API Lambda
 
 This simulates an API Gateway request.
-
+```bash```
 aws lambda invoke \
   --function-name event-driven-cloud-platform-dev-api \
   --cli-binary-format raw-in-base64-out \
@@ -89,14 +111,13 @@ aws lambda invoke \
   --profile dev \
   response.json
 
-
 View the response:
-
+```bash```
 type response.json
-
 
 Expected output:
 
+```JSON```
 {
   "statusCode": 202,
   "headers": {
@@ -104,13 +125,12 @@ Expected output:
   },
   "body": "{\"status\":\"accepted\",\"eventId\":\"<uuid>\"}"
 }
-
-2. Verify DynamoDB entry
+### 2. Verify DynamoDB Entry
+```bash```
 aws dynamodb get-item \
   --table-name event-driven-cloud-platform-dev-events \
   --key '{"pk":{"S":"EVENT#<eventId>"}}' \
   --profile dev
-
 
 Expected:
 
@@ -120,26 +140,25 @@ status = ENQUEUED
 
 S3 bucket and object key present
 
-3. Verify SQS
+### 3. Verify SQS
+```bash```
 aws sqs get-queue-attributes \
   --queue-url <queue-url> \
   --attribute-names ApproximateNumberOfMessages ApproximateNumberOfMessagesNotVisible \
   --profile dev
 
-
 Expected:
 
 Messages visible or recently processed
 
-4. Verify S3 (Bronze layer)
+### 4. Verify S3 (Bronze Layer)
 aws s3 ls s3://<bronze-bucket>/bronze/demo/ --profile dev
-
 
 Expected:
 
 JSON file containing the raw event payload
 
-Operational notes
+## Operational Notes
 
 SQS decouples ingestion from processing
 
@@ -151,24 +170,26 @@ DLQ captures failed messages for inspection
 
 All infrastructure is reproducible via Terraform
 
-Cleanup
+## Cleanup
 
 To avoid ongoing AWS costs:
-
+```bash```
 cd infra/envs/dev
 terraform destroy
 
-
 The entire platform can be recreated from code at any time.
 
-Planned enhancements
+### Planned Enhancements
 
 Expand worker Lambda processing logic
 
-S3 Silver processing layer
+Introduce S3 Silver processing layer
 
 EventBridge integration
 
-CloudWatch alarms and log retention
+CloudWatch alarms and log retention policies
 
-Stronger CI checks
+Stronger CI validation checks
+
+
+---
