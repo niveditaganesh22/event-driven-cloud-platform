@@ -38,20 +38,16 @@ This reflects how production systems decouple ingestion from processing for reli
 
 ## Architecture Overview
 
-```text```
-
+```text
 Client
-   ↓
+  ↓
 API Lambda
-   ├── S3 (Bronze – raw events)
-   ├── DynamoDB (event metadata)
-   └── SQS Queue
-         ├── Worker Lambda
-         └── Dead Letter Queue
-
-
-**Pipeline summary:**  
-Ingest → Persist → Queue → Process
+  ├── S3 (Bronze — raw events)
+  ├── DynamoDB (event metadata)
+  └── SQS Queue
+        ├── Worker Lambda
+        └── Dead Letter Queue
+```
 
 ---
 
