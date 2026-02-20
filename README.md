@@ -77,34 +77,34 @@ This project uses an AWS CLI profile named `dev`.
 
 Verify access:
 
-```bash```
+```bash
 
 aws sts get-caller-identity --profile dev
-
+```
 ## Build and Deploy (dev)
 
 ### 1. Build the API Lambda
 
-```bash```
+```bash
 
 cd services/api
 npm install
 npm run build
-
+```
 ### 2. Deploy Infrastructure
-```bash```
+```bash
 
 cd ../../infra/envs/dev
 
 terraform init
 
 terraform apply
-
+```
 ## Testing the Platform
 ### 1. Invoke the API Lambda
 
 This simulates an API Gateway request.
-```bash```
+```bash
 
 aws lambda invoke \
   --function-name event-driven-cloud-platform-dev-api \
@@ -112,16 +112,16 @@ aws lambda invoke \
   --payload '{"body":"{\"eventType\":\"demo\",\"message\":\"hello\"}"}' \
   --profile dev \
   response.json
-
+```
 View the response:
 
-```bash```
+```bash
 
 type response.json
-
+```
 Expected output:
 
-```JSON```
+```JSON
 {
   "statusCode": 202,
   "headers": {
@@ -129,14 +129,17 @@ Expected output:
   },
   "body": "{\"status\":\"accepted\",\"eventId\":\"<uuid>\"}"
 }
+```
+
 ### 2. Verify DynamoDB Entry
 
-```bash```
+```bash
 
 aws dynamodb get-item \
   --table-name event-driven-cloud-platform-dev-events \
   --key '{"pk":{"S":"EVENT#<eventId>"}}' \
   --profile dev
+```
 
 Expected:
 
@@ -148,12 +151,13 @@ S3 bucket and object key present
 
 ### 3. Verify SQS
 
-```bash```
+```bash
 
 aws sqs get-queue-attributes \
   --queue-url <queue-url> \
   --attribute-names ApproximateNumberOfMessages ApproximateNumberOfMessagesNotVisible \
   --profile dev
+```
 
 Expected:
 
@@ -182,11 +186,12 @@ All infrastructure is reproducible via Terraform
 
 To avoid ongoing AWS costs:
 
-```bash```
+```bash
 
 cd infra/envs/dev
 
 terraform destroy
+```
 
 The entire platform can be recreated from code at any time.
 
