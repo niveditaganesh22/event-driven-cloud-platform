@@ -38,41 +38,17 @@ Terraform (Infrastructure as Code)
 
 GitHub Actions (basic CI)
 
-Architecture overview
+## Architecture overview
 
-Ingest → Persist → Queue → Process
+Client → API Lambda → (S3 Bronze + DynamoDB) → SQS → Worker Lambda → DLQ
 
-Client
-  ↓
-API Lambda
-  ├── S3 (Bronze – raw events)
-  ├── DynamoDB (event metadata)
-  └── SQS Queue
-        ├── Worker Lambda
-        └── Dead Letter Queue
+## Repository structure
 
-Repository structure
-.
-├── infra/
-│   └── envs/dev/          # Terraform (dev environment)
-├── services/
-│   ├── api/               # API Lambda (TypeScript)
-│   └── worker/            # Worker Lambda
-├── docs/                  # Architecture notes & demo steps
-├── .github/workflows/     # CI
-└── README.md
+infra/ (Terraform) • services/api (Lambda) • services/worker (Lambda) • docs/ • .github/workflows/
 
-Current status
+## Current status
 
-✅ Infrastructure provisioned with Terraform
-
-✅ API Lambda deployed
-
-✅ Worker Lambda deployed
-
-✅ End-to-end ingestion tested
-
-✅ API Gateway HTTP endpoint working
+✅ End-to-end ingestion working (API Gateway → S3/DynamoDB → SQS → Worker)
 
 Prerequisites
 
